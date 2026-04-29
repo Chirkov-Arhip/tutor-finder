@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "tutor-finder"
+version = "0.1.0"
+description = "Веб-приложение для онлайн-подбора репетиторов"
+authors = ["Чирков Архип РИС-24-3 <aschirkov@edu.hse.ru>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = ">=0.136.1,<0.137.0"
+uvicorn = ">=0.46.0,<0.47.0"
+sqlalchemy = ">=2.0.49,<3.0.0"
+alembic = ">=1.18.4,<2.0.0"
+psycopg2-binary = ">=2.9.12,<3.0.0"
+pydantic-settings = ">=2.14.0,<3.0.0"
+python-jose = ">=3.5.0,<4.0.0"
+passlib = ">=1.7.4,<2.0.0"
+bcrypt = ">=5.0.0,<6.0.0"
+python-multipart = ">=0.0.27,<0.0.28"
+
+[tool.poetry.scripts]
+start = "src.main:start"
+dev = "src.main:dev"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
