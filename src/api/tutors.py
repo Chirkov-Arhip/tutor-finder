@@ -9,7 +9,6 @@ from src.db.models.application import Application
 
 router = APIRouter()
 
-# — Схемы данных —————————————————————————————————————
 class TutorProfileRequest(BaseModel):
     user_id: int
     last_name: str
@@ -21,13 +20,21 @@ class TutorProfileRequest(BaseModel):
     about: Optional[str] = None
     subjects: list[int] = []
 
+class UpdateTutorProfileRequest(BaseModel):
+    last_name: Optional[str] = None
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    age: Optional[int] = None
+    experience: Optional[int] = None
+    about: Optional[str] = None
+    subjects: Optional[list[int]] = None
+    custom_subject: Optional[str] = None
+
 class ApplicationStatusRequest(BaseModel):
     status: str
 
-# — Эндпоинты ————————————————————————————————————————
 @router.post("/profile", status_code=201)
 def create_profile(data: TutorProfileRequest, db: Session = Depends(get_db)):
-    # Проверяем что профиль ещё не создан
     existing = db.query(TutorProfile).filter(
         TutorProfile.user_id == data.user_id
     ).first()
@@ -45,9 +52,8 @@ def create_profile(data: TutorProfileRequest, db: Session = Depends(get_db)):
         about=data.about
     )
     db.add(profile)
-    db.flush()  # получаем id профиля до commit
+    db.flush()
 
-    # Добавляем предметы
     for subject_id in data.subjects:
         subject = db.query(Subject).filter(Subject.id == subject_id).first()
         if subject:
@@ -75,7 +81,6 @@ def get_applications(tutor_id: int, db: Session = Depends(get_db)):
                 "full_name": f"{a.student.last_name} {a.student.first_name} {a.student.middle_name or ''}".strip(),
                 "age": a.student.age,
                 "about": a.student.about,
-                # телефон показываем только если заявка принята
                 "phone": a.student.phone if a.status == "accepted" else None
             }
         })
@@ -98,3 +103,68 @@ def respond_to_application(
     application.status = data.status
     db.commit()
     return {"message": "Статус обновлён", "status": data.status}
+
+
+@router.get("/profile/full/{user_id}")
+def get_full_profile(user_id: int, db: Session = Depends(get_db)):
+    profile = db.query(TutorProfile).filter(
+        TutorProfile.user_id == user_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Профиль не найден")
+    return {
+        "id": profile.id,
+        "last_name": profile.last_name,
+        "first_name": profile.first_name,
+        "middle_name": profile.middle_name,
+        "age": profile.age,
+        "experience": profile.experience,
+        "phone": profile.phone,
+        "about": profile.about,
+        "subjects": [{"id": s.id, "name": s.name} for s in profile.subjects]
+    }
+
+
+@router.patch("/profile/{user_id}")
+def update_profile(user_id: int, data: UpdateTutorProfileRequest, db: Session = Depends(get_db)):
+    profile = db.query(TutorProfile).filter(
+        TutorProfile.user_id == user_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Профиль не найден")
+
+    if data.last_name is not None:
+        profile.last_name = data.last_name
+    if data.first_name is not None:
+        profile.first_name = data.first_name
+    if data.middle_name is not None:
+        profile.middle_name = data.middle_name
+    if data.age is not None:
+        profile.age = data.age
+    if data.experience is not None:
+        profile.experience = data.experience
+    if data.about is not None:
+        profile.about = data.about
+
+    if data.subjects is not None:
+        profile.subjects = []
+        for subject_id in data.subjects:
+            subject = db.query(Subject).filter(Subject.id == subject_id).first()
+            if subject:
+                profile.subjects.append(subject)
+
+    if data.custom_subject:
+        existing = db.query(Subject).filter(
+            Subject.name == data.custom_subject
+        ).first()
+        if existing:
+            if existing not in profile.subjects:
+                profile.subjects.append(existing)
+        else:
+            new_subject = Subject(name=data.custom_subject)
+            db.add(new_subject)
+            db.flush()
+            profile.subjects.append(new_subject)
+
+    db.commit()
+    return {"message": "Профиль обновлён"}

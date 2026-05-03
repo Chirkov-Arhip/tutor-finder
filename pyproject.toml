@@ -3,7 +3,7 @@ name = "tutor-finder"
 version = "0.1.0"
 description = "Веб-приложение для онлайн-подбора репетиторов"
 authors = ["Чирков Архип РИС-24-3 <aschirkov@edu.hse.ru>"]
-package-mode = false
+packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -17,6 +17,7 @@ python-jose = ">=3.5.0,<4.0.0"
 passlib = ">=1.7.4,<2.0.0"
 bcrypt = ">=5.0.0,<6.0.0"
 python-multipart = ">=0.0.27,<0.0.28"
+fastapi-mail = "^1.6.3"
 
 [tool.poetry.scripts]
 start = "src.main:start"

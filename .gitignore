@@ -1,0 +1,16 @@
+# Виртуальное окружение
+venv/
+
+# Python кэш
+__pycache__/
+*.pyc
+*.pyo
+
+# Переменные окружения
+.env
+
+# VS Code
+.vscode/
+
+# Poetry
+.venv/

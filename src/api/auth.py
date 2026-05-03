@@ -62,3 +62,21 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
             detail="Неверный email или пароль"
         )
     return user
+
+class ChangePasswordRequest(BaseModel):
+    user_id: int
+    old_password: str
+    new_password: str
+
+@router.patch("/password")
+def change_password(data: ChangePasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == data.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    if not verify_password(data.old_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Неверный текущий пароль")
+
+    user.password_hash = hash_password(data.new_password)
+    db.commit()
+    return {"message": "Пароль изменён"}

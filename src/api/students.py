@@ -107,22 +107,36 @@ def get_tutors(subject_id: Optional[int] = None, db: Session = Depends(get_db)):
 
 @router.get("/subjects")
 def get_subjects(db: Session = Depends(get_db)):
-    subjects = db.query(Subject).all()
+    subjects = db.query(Subject).filter(Subject.id <= 10).all()
     return [{"id": s.id, "name": s.name} for s in subjects]
 
 
 @router.post("/apply", status_code=201)
 def apply(data: ApplicationRequest, db: Session = Depends(get_db)):
-    # Проверяем что такой заявки ещё нет
-    existing = db.query(Application).filter(
-        Application.student_id == data.student_id,
-        Application.tutor_id == data.tutor_id,
-        Application.status == "pending"
-    ).first()
+    # Определяем предмет для проверки дубликата
+    if data.subject_id:
+        # Проверяем дубликат по subject_id
+        existing = db.query(Application).filter(
+            Application.student_id == data.student_id,
+            Application.tutor_id == data.tutor_id,
+            Application.subject_id == data.subject_id,
+            Application.status == "pending"
+        ).first()
+    elif data.custom_subject:
+        # Проверяем дубликат по custom_subject
+        existing = db.query(Application).filter(
+            Application.student_id == data.student_id,
+            Application.tutor_id == data.tutor_id,
+            Application.custom_subject == data.custom_subject,
+            Application.status == "pending"
+        ).first()
+    else:
+        existing = None
+
     if existing:
         raise HTTPException(
             status_code=400,
-            detail="Заявка этому репетитору уже отправлена"
+            detail="Заявка с таким предметом этому репетитору уже отправлена"
         )
 
     application = Application(
@@ -135,3 +149,49 @@ def apply(data: ApplicationRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(application)
     return {"message": "Заявка отправлена", "id": application.id}
+
+@router.get("/profile/full/{user_id}")
+def get_full_profile(user_id: int, db: Session = Depends(get_db)):
+    profile = db.query(StudentProfile).filter(
+        StudentProfile.user_id == user_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Профиль не найден")
+    return {
+        "id": profile.id,
+        "last_name": profile.last_name,
+        "first_name": profile.first_name,
+        "middle_name": profile.middle_name,
+        "age": profile.age,
+        "phone": profile.phone,
+        "about": profile.about
+    }
+
+@router.patch("/profile/{user_id}")
+def update_profile(user_id: int, data: dict, db: Session = Depends(get_db)):
+    profile = db.query(StudentProfile).filter(
+        StudentProfile.user_id == user_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Профиль не найден")
+
+    if "last_name" in data:
+        profile.last_name = data["last_name"]
+    if "first_name" in data:
+        profile.first_name = data["first_name"]
+    if "middle_name" in data:
+        profile.middle_name = data["middle_name"]
+    if "age" in data:
+        profile.age = data["age"]
+    if "about" in data:
+        profile.about = data["about"]
+
+    db.commit()
+    return {"message": "Профиль обновлён"}
+
+@router.get("/tutor-subjects/{tutor_id}")
+def get_tutor_subjects(tutor_id: int, db: Session = Depends(get_db)):
+    tutor = db.query(TutorProfile).filter(TutorProfile.id == tutor_id).first()
+    if not tutor:
+        raise HTTPException(status_code=404, detail="Репетитор не найден")
+    return [{"id": s.id, "name": s.name} for s in tutor.subjects]
