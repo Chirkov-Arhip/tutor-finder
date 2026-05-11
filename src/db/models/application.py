@@ -11,6 +11,8 @@ class Application(Base):
     subject_id = Column(Integer, ForeignKey("subjects.id"))
     custom_subject = Column(String(100))
     status = Column(String(10), default="pending")
+    message = Column(Text, nullable=True)
+    proposed_dates = Column(String(500), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     student = relationship("StudentProfile", back_populates="applications")

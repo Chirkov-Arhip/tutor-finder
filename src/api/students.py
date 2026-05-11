@@ -24,6 +24,8 @@ class ApplicationRequest(BaseModel):
     tutor_id: int
     subject_id: Optional[int] = None
     custom_subject: Optional[str] = None
+    message: Optional[str] = None
+    proposed_dates: Optional[str] = None
 
 class TutorResponse(BaseModel):
     id: int
@@ -50,7 +52,6 @@ class ApplicationResponse(BaseModel):
 # — Эндпоинты ————————————————————————————————————————
 @router.post("/profile", status_code=201)
 def create_profile(data: StudentProfileRequest, db: Session = Depends(get_db)):
-    # Проверяем что профиль ещё не создан
     existing = db.query(StudentProfile).filter(
         StudentProfile.user_id == data.user_id
     ).first()
@@ -81,14 +82,28 @@ def get_profile(user_id: int, db: Session = Depends(get_db)):
     return {"id": profile.id, "user_id": profile.user_id}
 
 @router.get("/tutors")
-def get_tutors(subject_id: Optional[int] = None, db: Session = Depends(get_db)):
-    # Если передан фильтр по предмету — фильтруем
+def get_tutors(
+    subject_id: Optional[int] = None,
+    experience_min: Optional[int] = None,
+    experience_max: Optional[int] = None,
+    age_min: Optional[int] = None,
+    age_max: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(TutorProfile)
+
     if subject_id:
-        tutors = db.query(TutorProfile).filter(
-            TutorProfile.subjects.any(id=subject_id)
-        ).all()
-    else:
-        tutors = db.query(TutorProfile).all()
+        query = query.filter(TutorProfile.subjects.any(id=subject_id))
+    if experience_min is not None:
+        query = query.filter(TutorProfile.experience >= experience_min)
+    if experience_max is not None:
+        query = query.filter(TutorProfile.experience <= experience_max)
+    if age_min is not None:
+        query = query.filter(TutorProfile.age >= age_min)
+    if age_max is not None:
+        query = query.filter(TutorProfile.age <= age_max)
+
+    tutors = query.all()
 
     result = []
     for t in tutors:
@@ -113,9 +128,7 @@ def get_subjects(db: Session = Depends(get_db)):
 
 @router.post("/apply", status_code=201)
 def apply(data: ApplicationRequest, db: Session = Depends(get_db)):
-    # Определяем предмет для проверки дубликата
     if data.subject_id:
-        # Проверяем дубликат по subject_id
         existing = db.query(Application).filter(
             Application.student_id == data.student_id,
             Application.tutor_id == data.tutor_id,
@@ -123,7 +136,6 @@ def apply(data: ApplicationRequest, db: Session = Depends(get_db)):
             Application.status == "pending"
         ).first()
     elif data.custom_subject:
-        # Проверяем дубликат по custom_subject
         existing = db.query(Application).filter(
             Application.student_id == data.student_id,
             Application.tutor_id == data.tutor_id,
@@ -143,7 +155,9 @@ def apply(data: ApplicationRequest, db: Session = Depends(get_db)):
         student_id=data.student_id,
         tutor_id=data.tutor_id,
         subject_id=data.subject_id,
-        custom_subject=data.custom_subject
+        custom_subject=data.custom_subject,
+        message=data.message,
+        proposed_dates=data.proposed_dates
     )
     db.add(application)
     db.commit()

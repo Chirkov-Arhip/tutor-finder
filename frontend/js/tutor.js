@@ -55,12 +55,21 @@ if (tutorProfileForm) {
     });
 }
 
+// Форматирование дат
+function formatDates(datesStr) {
+    if (!datesStr) return null;
+    return datesStr.split(',').map(d => {
+        const date = new Date(d.trim());
+        if (isNaN(date)) return d.trim();
+        return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    }).join(', ');
+}
+
 // Загрузка заявок
 async function loadApplications() {
     const container = document.getElementById('applicationsList');
     if (!container) return;
 
-    // Сначала получаем id профиля репетитора
     const profileResponse = await fetch(`/api/tutors/profile/full/${userId}`);
     if (!profileResponse.ok) {
         container.innerHTML = '<p class="text-muted">Профиль не найден</p>';
@@ -81,29 +90,45 @@ async function loadApplications() {
         return;
     }
 
-    container.innerHTML = apps.map(a => `
+    container.innerHTML = apps.map(a => {
+        const formattedDates = formatDates(a.proposed_dates);
+        return `
         <div class="card mb-3">
             <div class="card-body">
-                <h5>${a.student.full_name}</h5>
-                <p>Возраст: ${a.student.age}</p>
-                <p>Предмет: ${a.subject}</p>
-                <p>О себе: ${a.student.about || '—'}</p>
-                <p>Телефон: ${a.student.phone || 'Доступен после принятия заявки'}</p>
-                <p>Статус: ${getStatusBadge(a.status)}</p>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="mb-0">${a.student.full_name}</h5>
+                    ${getStatusBadge(a.status)}
+                </div>
+                <p class="mb-1 text-muted"><small>Возраст: ${a.student.age} лет</small></p>
+                <p class="mb-1"><strong>Предмет:</strong> ${a.subject}</p>
+                ${a.student.about ? `<p class="mb-1"><strong>О себе:</strong> ${a.student.about}</p>` : ''}
+                ${a.message ? `
+                    <div class="mb-1 p-2 bg-light rounded" style="border-left: 3px solid #0d6efd;">
+                        <small class="text-muted d-block mb-1">💬 Сообщение ученика:</small>
+                        <span>${a.message}</span>
+                    </div>` : ''}
+                ${formattedDates ? `
+                    <div class="mb-1 p-2 bg-light rounded" style="border-left: 3px solid #198754;">
+                        <small class="text-muted d-block mb-1">📅 Предложенные даты занятий:</small>
+                        <span>${formattedDates}</span>
+                    </div>` : ''}
+                ${a.student.phone ? `<p class="mb-2"><strong>Телефон:</strong> ${a.student.phone}</p>` : ''}
                 ${a.status === 'pending' ? `
-                    <button onclick="respond(${a.id}, 'accepted')"
-                            class="btn btn-success btn-sm me-2">Принять</button>
-                    <button onclick="respond(${a.id}, 'rejected')"
-                            class="btn btn-danger btn-sm">Отклонить</button>
+                    <div class="mt-2 d-flex gap-2">
+                        <button onclick="respond(${a.id}, 'accepted')"
+                                class="btn btn-success btn-sm">✓ Принять</button>
+                        <button onclick="respond(${a.id}, 'rejected')"
+                                class="btn btn-danger btn-sm">✗ Отклонить</button>
+                    </div>
                 ` : ''}
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 function getStatusBadge(status) {
     const badges = {
-        'pending': '<span class="badge bg-warning">Ожидает</span>',
+        'pending': '<span class="badge bg-warning text-dark">Ожидает</span>',
         'accepted': '<span class="badge bg-success">Принята</span>',
         'rejected': '<span class="badge bg-danger">Отклонена</span>'
     };

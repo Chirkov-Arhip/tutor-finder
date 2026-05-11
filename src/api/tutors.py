@@ -77,6 +77,8 @@ def get_applications(tutor_id: int, db: Session = Depends(get_db)):
             "status": a.status,
             "subject": a.subject.name if a.subject_id else a.custom_subject,
             "created_at": str(a.created_at),
+            "message": a.message,
+            "proposed_dates": a.proposed_dates,
             "student": {
                 "full_name": f"{a.student.last_name} {a.student.first_name} {a.student.middle_name or ''}".strip(),
                 "age": a.student.age,
